@@ -1,0 +1,94 @@
+:root {
+  --bg: #0b0f14;
+  --panel: #121820;
+  --line: #1f2a36;
+  --text: #d6e2ee;
+  --muted: #7d8fa3;
+  --accent: #4fb3ff;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; height: 100%; overflow: hidden; }
+
+body { display: flex; }
+
+#sidebar {
+  width: 260px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+
+#sidebar header { padding: 18px 18px 10px; }
+#sidebar h1 { font-size: 16px; margin: 0; letter-spacing: 0.02em; }
+#sidebar header p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+
+#demo-list { display: flex; flex-direction: column; padding: 6px 8px; gap: 2px; }
+
+#demo-list a {
+  display: block;
+  padding: 9px 10px;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+}
+#demo-list a:hover { background: #18212c; }
+#demo-list a.active { background: #1a2a3a; box-shadow: inset 2px 0 0 var(--accent); }
+#demo-list a .num { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 6px; }
+#demo-list a .tags { display: block; margin-top: 3px; font-size: 11px; color: var(--muted); }
+
+#demo-info { padding: 12px 18px 18px; font-size: 12px; line-height: 1.55; color: var(--muted); border-top: 1px solid var(--line); margin-top: 8px; }
+#demo-info h2 { font-size: 13px; color: var(--text); margin: 0 0 6px; }
+#demo-info ul { padding-left: 16px; margin: 6px 0; }
+#demo-info kbd {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #0e141b;
+  color: var(--text);
+}
+
+#stage { position: relative; flex: 1; min-width: 0; }
+#gfx { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+
+#hud {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  font: 12px ui-monospace, monospace;
+  color: #e8f1fa;
+  text-shadow: 0 1px 2px #000a;
+  pointer-events: none;
+  white-space: pre;
+}
+
+#error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.6;
+  background: var(--bg);
+  color: var(--text);
+}
+#error[hidden] { display: none; }
+
+.lil-gui.lil-root { position: absolute; top: 0; right: 0; max-height: 100%; overflow-y: auto; }
+
+@media (max-width: 720px) {
+  #sidebar { display: none; }
+}
