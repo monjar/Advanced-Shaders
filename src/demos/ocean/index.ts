@@ -3,7 +3,7 @@ import { bindGroup, createShader, gridMesh, indexBuffer, uniformBuffer, vertexBu
 import { deg, type Vec3 } from '../../core/math';
 import { box, buoy, sphere, type Mesh } from './geometry';
 import { DEFAULTS, SPECTRUM_KEYS, buildGui, type OceanParams } from './params';
-import { ambientLight, sunColor, sunTopIntensity, type SkySettings } from './sky';
+import { ambientLight, sunColor, sunTopIntensity, type SkySettings } from '../../shared/sky';
 
 import assembleWgsl from './shaders/assemble.wgsl?raw';
 import buoyancyWgsl from './shaders/buoyancy.wgsl?raw';
@@ -16,7 +16,7 @@ import mipgenWgsl from './shaders/mipgen.wgsl?raw';
 import objectsWgsl from './shaders/objects.wgsl?raw';
 import oceanWgsl from './shaders/ocean.wgsl?raw';
 import ripplesWgsl from './shaders/ripples.wgsl?raw';
-import skyWgsl from './shaders/sky.wgsl?raw';
+import skyWgsl from '../../shared/sky.wgsl?raw';
 import skyPassWgsl from './shaders/sky_pass.wgsl?raw';
 import conjugateWgsl from './shaders/spectrum_conjugate.wgsl?raw';
 import spectrumInitWgsl from './shaders/spectrum_init.wgsl?raw';
