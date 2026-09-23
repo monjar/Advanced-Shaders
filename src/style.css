@@ -92,3 +92,9 @@ body { display: flex; }
 @media (max-width: 720px) {
   #sidebar { display: none; }
 }
+
+/* Offline capture mode (?capture): only the canvas, at a fixed size. */
+body.capture #sidebar,
+body.capture #hud,
+body.capture .lil-gui { display: none !important; }
+body.capture #stage { flex: none; width: var(--capture-w); height: var(--capture-h); }

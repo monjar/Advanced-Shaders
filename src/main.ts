@@ -13,6 +13,18 @@ const info = document.querySelector<HTMLElement>('#demo-info')!;
 
 const params = new URLSearchParams(location.search);
 const renderScale = Math.min(2, Math.max(0.25, Number(params.get('scale')) || 1));
+// Offline capture: `?capture&w=1280&h=720` renders a fixed-size canvas with no
+// UI and no real-time loop. Frames are advanced explicitly through
+// `window.capture.step(dt)` (see tools/record.mjs), so a slow GPU still
+// produces a smooth, deterministic 60 fps sequence.
+const capture = params.has('capture');
+if (capture) {
+  const w = Number(params.get('w')) || 1280;
+  const h = Number(params.get('h')) || 720;
+  document.body.classList.add('capture');
+  document.documentElement.style.setProperty('--capture-w', `${w}px`);
+  document.documentElement.style.setProperty('--capture-h', `${h}px`);
+}
 
 function showError(message: string) {
   errorEl.hidden = false;
@@ -45,7 +57,7 @@ async function start() {
   let height = 0;
 
   const resize = () => {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2) * renderScale;
+    const dpr = capture ? 1 : Math.min(window.devicePixelRatio || 1, 2) * renderScale;
     const w = Math.max(1, Math.floor(canvas.clientWidth * dpr));
     const h = Math.max(1, Math.floor(canvas.clientHeight * dpr));
     if (w === width && h === height) return;
@@ -81,6 +93,27 @@ async function start() {
   window.addEventListener('hashchange', route);
   route();
 
+  const renderFrame = (time: number, dt: number) => {
+    if (!current) return;
+    current.camera.update(dt, width / height);
+    const encoder = gpu.device.createCommandEncoder();
+    current.demo.frame(encoder, gpu.context.getCurrentTexture().createView(), { time, dt, width, height });
+    gpu.device.queue.submit([encoder.finish()]);
+  };
+
+  if (capture) {
+    let time = 0;
+    (window as unknown as { capture: unknown }).capture = {
+      /** Renders one frame `dt` seconds after the previous one and waits for the GPU. */
+      async step(dt: number) {
+        time += dt;
+        renderFrame(time, dt);
+        await gpu.device.queue.onSubmittedWorkDone();
+      },
+    };
+    return;
+  }
+
   let last = performance.now();
   let fpsTime = 0;
   let fpsFrames = 0;
@@ -99,16 +132,7 @@ async function start() {
       fpsFrames = 0;
     }
 
-    current.camera.update(dt, width / height);
-    const encoder = gpu.device.createCommandEncoder();
-    current.demo.frame(encoder, gpu.context.getCurrentTexture().createView(), {
-      time: (now - current.started) / 1000,
-      dt,
-      width,
-      height,
-    });
-    gpu.device.queue.submit([encoder.finish()]);
-
+    renderFrame((now - current.started) / 1000, dt);
     const extra = current.demo.hud?.() ?? '';
     hud.textContent = `${fps.toFixed(0)} fps  ${width}x${height}${extra ? '\n' + extra : ''}`;
   };
