@@ -14,6 +14,33 @@ Each study is a self-contained "demo" registered in a shared scene shell
 ![Cumulus from the ground](docs/clouds-ground.jpg)
 ![Above the cloud layer](docs/clouds-above.jpg)
 
+## Videos
+
+60 fps, 1280×720 captures of each study (H.264):
+
+- [`docs/videos/ocean.mp4`](docs/videos/ocean.mp4): open water and sun glitter,
+  shoreline with caustics and breaking waves, dropped objects splashing, storm.
+- [`docs/videos/clouds.mp4`](docs/videos/clouds.mp4): time-lapse cumulus, a
+  climb through the cloud layer, sunset into the sun, overcast clearing up.
+
+They are rendered offline, one fixed 1/60 s step per frame, so they are smooth
+regardless of how fast the machine renders. To re-record (for example after
+changing a shader or `tools/shots.mjs`):
+
+```sh
+npm i -D playwright            # the recorder drives Chromium through Playwright
+npm run dev                    # keep running in another terminal
+node tools/record.mjs all      # or: ocean | clouds
+```
+
+It needs `ffmpeg` with libx264 on `PATH` (or `FFMPEG=/path/to/ffmpeg`). Useful
+flags: `--size 1920x1080`, `--fps 120`, `--crf 18`, `--headed` (some platforms
+only expose the GPU to a visible browser), and `--swiftshader` for machines
+without a GPU. Each shot is cached as a segment in `docs/videos/.segments`, so
+an interrupted run resumes where it stopped. With a real GPU a full run takes
+minutes. The committed videos were rendered on SwiftShader (CPU), at about
+7 s per ocean frame and 1 s per clouds frame.
+
 ## Running
 
 ```sh
