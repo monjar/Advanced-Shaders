@@ -1,13 +1,23 @@
 // Analytic single-scattering sky (Rayleigh + Mie) with a flat-earth airmass
-// approximation. Requires a uniform `F: Frame`. Mirrored on the CPU in sky.ts
-// to derive the sun colour and ambient light.
+// approximation. Requires a uniform `F` with camPos, sunDir, sunColor,
+// sunIntensity and sky (see the Frame struct in each demo). Mirrored on the
+// CPU in sky.ts to derive the sun colour and ambient light.
 
 const BETA_R: vec3f = vec3f(5.8e-3, 13.5e-3, 33.1e-3); // Rayleigh scattering per km
+// Ozone absorption integrated over a ~15 km column (Chappuis band). It
+// removes green/orange from low sunlight and keeps the twilight zenith blue.
+const OZONE: vec3f = vec3f(0.00975, 0.0282, 0.00128);
 
 fn airmass(cosZenith: f32) -> f32 {
   let c = clamp(cosZenith, 0.0, 1.0);
   let zenithDeg = acos(c) * 57.29578;
   return 1.0 / (c + 0.15 * pow(max(93.885 - zenithDeg, 1e-3), -1.253));
+}
+
+// Airmass through a thin shell ~25 km up, which stays finite at the horizon.
+fn ozoneTransmittance(cosZenith: f32) -> vec3f {
+  let c = max(cosZenith, 0.0);
+  return exp(-OZONE / sqrt(c * c + 0.0078));
 }
 
 fn skyExtinction() -> vec3f {
@@ -20,7 +30,7 @@ fn skyRadiance(dirIn: vec3f, withSun: bool) -> vec3f {
   let bM = vec3f(0.004 * F.sky.x);
   let ext = skyExtinction();
   let viewT = exp(-ext * airmass(d.y));
-  let sunT = exp(-ext * airmass(F.sunDir.y));
+  let sunT = exp(-ext * airmass(F.sunDir.y)) * ozoneTransmittance(F.sunDir.y);
 
   let mu = dot(d, F.sunDir);
   let g = F.sky.z;
@@ -28,7 +38,7 @@ fn skyRadiance(dirIn: vec3f, withSun: bool) -> vec3f {
   let phaseM = 0.0795775 * (1.0 - g * g) / pow(max(1.0 + g * g - 2.0 * g * mu, 1e-4), 1.5);
 
   // Light reaching high-altitude scatterers is less reddened than at the horizon.
-  let scatterT = pow(sunT, vec3f(0.2 + 0.45 * (1.0 - d.y)));
+  let scatterT = pow(sunT, vec3f(0.1 + 0.55 * (1.0 - d.y) * (1.0 - d.y)));
   var L = F.sunIntensity * scatterT * (bR * phaseR + bM * phaseM) / (bR + bM) * (1.0 - viewT) * F.sky.w;
   L += vec3f(0.002, 0.004, 0.008);
 

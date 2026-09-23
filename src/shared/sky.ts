@@ -1,4 +1,4 @@
-import { smoothstep, type Vec3 } from '../../core/math';
+import { smoothstep, type Vec3 } from '../core/math';
 
 /** CPU mirror of sky.wgsl, used to derive sun colour and ambient light once per frame. */
 export interface SkySettings {
@@ -11,6 +11,12 @@ export interface SkySettings {
 }
 
 const BETA_R: Vec3 = [5.8e-3, 13.5e-3, 33.1e-3];
+const OZONE: Vec3 = [0.00975, 0.0282, 0.00128];
+
+function ozoneTransmittance(cosZenith: number, i: number): number {
+  const c = Math.max(cosZenith, 0);
+  return Math.exp(-OZONE[i] / Math.sqrt(c * c + 0.0078));
+}
 
 function airmass(cosZenith: number): number {
   const c = Math.min(1, Math.max(0, cosZenith));
@@ -32,7 +38,8 @@ export function sunColor(s: SkySettings): Vec3 {
   const ext = extinction(s);
   const m = airmass(s.sunDir[1]);
   const top = sunTopIntensity(s);
-  return [top * Math.exp(-ext[0] * m), top * Math.exp(-ext[1] * m), top * Math.exp(-ext[2] * m)];
+  const y = s.sunDir[1];
+  return [0, 1, 2].map((i) => top * Math.exp(-ext[i] * m) * ozoneTransmittance(y, i)) as Vec3;
 }
 
 export function skyRadiance(dir: Vec3, s: SkySettings): Vec3 {
@@ -52,8 +59,8 @@ export function skyRadiance(dir: Vec3, s: SkySettings): Vec3 {
   for (let i = 0; i < 3; i++) {
     const bR = BETA_R[i] * s.rayleigh;
     const viewT = Math.exp(-ext[i] * mv);
-    const sunT = Math.exp(-ext[i] * ms);
-    const scatterT = Math.pow(sunT, 0.2 + 0.45 * (1 - d[1]));
+    const sunT = Math.exp(-ext[i] * ms) * ozoneTransmittance(s.sunDir[1], i);
+    const scatterT = Math.pow(sunT, 0.1 + 0.55 * (1 - d[1]) * (1 - d[1]));
     out[i] = (top * scatterT * (bR * phaseR + bM * phaseM)) / (bR + bM) * (1 - viewT) * s.boost + floor[i];
   }
   return out;

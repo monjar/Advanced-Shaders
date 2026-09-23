@@ -14,6 +14,11 @@ export class OrbitCamera {
   fovY = (55 * Math.PI) / 180;
   near = 0.1;
   minEyeHeight = -Infinity;
+  minPitch = -0.3;
+  maxPitch = 1.5;
+  minDistance = 2;
+  /** Fly speed in m/s; defaults to a fraction of the orbit distance. */
+  moveSpeed: number | null = null;
 
   eye: Vec3 = [0, 0, 0];
   view: Mat4 = mat4.identity();
@@ -49,7 +54,7 @@ export class OrbitCamera {
       this.drag.y = e.clientY;
       if (this.drag.button === 0) {
         this.yaw -= dx * 0.005;
-        this.pitch = clamp(this.pitch + dy * 0.005, -0.3, 1.5);
+        this.pitch = clamp(this.pitch + dy * 0.005, this.minPitch, this.maxPitch);
       } else {
         const s = this.distance * 0.0015;
         const right: Vec3 = [Math.cos(this.yaw), 0, -Math.sin(this.yaw)];
@@ -64,7 +69,7 @@ export class OrbitCamera {
     on('pointercancel', end);
     on('wheel', (e) => {
       e.preventDefault();
-      this.distance = clamp(this.distance * Math.exp(e.deltaY * 0.001), 2, 2000);
+      this.distance = clamp(this.distance * Math.exp(e.deltaY * 0.001), this.minDistance, 2000);
     }, { passive: false });
     onWin('keydown', (e) => {
       if ((e.target as HTMLElement)?.closest?.('input, textarea, select')) return;
@@ -84,7 +89,7 @@ export class OrbitCamera {
   }
 
   update(dt: number, aspect: number) {
-    const speed = (this.keys.has('shift') ? 4 : 1) * Math.max(8, this.distance * 0.6) * dt;
+    const speed = (this.keys.has('shift') ? 4 : 1) * (this.moveSpeed ?? Math.max(8, this.distance * 0.6)) * dt;
     const right: Vec3 = [Math.cos(this.yaw), 0, -Math.sin(this.yaw)];
     const fwd: Vec3 = [-Math.sin(this.yaw), 0, -Math.cos(this.yaw)];
     let move: Vec3 = [0, 0, 0];

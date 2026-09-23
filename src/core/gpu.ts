@@ -42,23 +42,21 @@ type Resource = GPUBuffer | GPUTextureView | GPUSampler | GPUBufferBinding;
 
 /**
  * Builds a bind group for an auto-layout pipeline. Resources are bound to
- * consecutive binding indices starting at 0.
+ * consecutive binding indices starting at 0; `null` skips a binding the
+ * entry point doesn't use.
  */
 export function bindGroup(
   device: GPUDevice,
   pipeline: GPURenderPipeline | GPUComputePipeline,
   group: number,
-  resources: Resource[],
+  resources: (Resource | null)[],
   label?: string,
 ): GPUBindGroup {
-  return device.createBindGroup({
-    label,
-    layout: pipeline.getBindGroupLayout(group),
-    entries: resources.map((r, binding) => ({
-      binding,
-      resource: r instanceof GPUBuffer ? { buffer: r } : r,
-    })),
+  const entries: GPUBindGroupEntry[] = [];
+  resources.forEach((r, binding) => {
+    if (r) entries.push({ binding, resource: r instanceof GPUBuffer ? { buffer: r } : r });
   });
+  return device.createBindGroup({ label, layout: pipeline.getBindGroupLayout(group), entries });
 }
 
 export function uniformBuffer(device: GPUDevice, size: number, label: string): GPUBuffer {
