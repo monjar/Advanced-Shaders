@@ -2,6 +2,7 @@ import type { DemoEntry } from './demo';
 import { cloudsEntry } from '../demos/clouds';
 import { oceanEntry } from '../demos/ocean';
 import { watercolourEntry } from '../demos/watercolour';
+import { portalsEntry } from '../demos/portals';
 
 /** Every shader study in the repo. Add new entries here. */
-export const demos: DemoEntry[] = [oceanEntry, cloudsEntry, watercolourEntry];
+export const demos: DemoEntry[] = [oceanEntry, cloudsEntry, watercolourEntry, portalsEntry];
