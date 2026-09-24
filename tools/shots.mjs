@@ -72,8 +72,9 @@ export const SHOTS = {
       },
       update: (demo, t, u) => {
         const c = demo.camera;
-        c.distance = 30;
-        c.pitch = 0.15;
+        // Storm crests reach 6-7 m: keep the eye well above them (~13 m).
+        c.distance = 40;
+        c.pitch = 0.33;
         c.yaw = lerp(0.1, -0.3, ease(u));
       },
     },
