@@ -8,11 +8,14 @@ Each study is a self-contained "demo" registered in a shared scene shell
 |---|-------|-----------|
 | 01 | [Deep-water ocean](src/demos/ocean) | compute-shader FFT, vertex displacement, procedural animation, BRDFs, screen-space refraction, caustics, GPU buoyancy |
 | 02 | [Volumetric clouds](src/demos/clouds) | ray marching, tileable 3D noise, density shaping, multiple scattering, weather maps, temporal reprojection |
+| 03 | [Watercolour](src/demos/watercolour) | G-buffer stylisation, lighting abstraction, world-space brush direction, edge extraction, colour bleeding, paper, temporal coherence |
 
 ![Open water](docs/ocean-open-water.jpg)
 ![Shoreline](docs/ocean-shoreline.jpg)
 ![Cumulus from the ground](docs/clouds-ground.jpg)
 ![Above the cloud layer](docs/clouds-above.jpg)
+![Watercolour](docs/watercolour.jpg)
+![Pen and wash](docs/watercolour-pen-and-wash.jpg)
 
 ## Videos
 
@@ -22,6 +25,8 @@ Each study is a self-contained "demo" registered in a shared scene shell
   shoreline with caustics and breaking waves, dropped objects splashing, storm.
 - [`docs/videos/clouds.mp4`](docs/videos/clouds.mp4): time-lapse cumulus, a
   climb through the cloud layer, sunset into the sun, overcast clearing up.
+- [`docs/videos/watercolour.mp4`](docs/videos/watercolour.mp4): an orbit around
+  the cottage, a pen-and-wash dolly-in, wet-in-wet under a low sun.
 
 They are rendered offline, one fixed 1/60 s step per frame, so they are smooth
 regardless of how fast the machine renders. To re-record (for example after
@@ -274,3 +279,122 @@ weather-map and shadow-map insets.
 - No lightning, precipitation shafts, or light shafts (god rays) through gaps.
 - Only verified on SwiftShader (CPU WebGPU); real-GPU frame times have not
   been measured.
+
+## 03 · Watercolour
+
+A real medium rather than a cel shader: the scene is painted as transparent
+watercolour washes on cold-press paper, with an optional pen-and-ink layer
+(pen and wash). Presets: *Watercolour*, *Pen and wash*, *Wet-in-wet*, *Dry
+brush*.
+
+### Frame graph
+
+```
+render   shadow        sun depth map (cast shadows become a glaze, not a lighting term)
+render   gbuffer       sky wash + scene → pigment absorbance, normal + wetness, depth + id, brush direction + light
+compute  edges         ink edges (depth / id / crease) and wash boundaries
+compute  bleed ×2      separable wet-in-wet bleeding of absorbance
+compute  smear         line-integral smear along the brush direction
+compute  composite     paper, wobble, edge darkening, granulation, dry brush, ink, Beer–Lambert
+compute  coherence     reprojection error against the previous frame (optional)
+render   blit          to the canvas
+```
+
+### Techniques and where they live
+
+- **Lighting abstraction** (`gbuffer.wgsl`): wrapped diffuse and a PCF cast
+  shadow are reduced to three glazes: paper left light, a mid wash, and a
+  darker shadow wash tinted cool, as painters mix blue into shadows. Glaze
+  boundaries are soft and jittered by surface noise so they read as brushed
+  edges. Distant washes get paler and bluer (aerial perspective).
+- **Pigment model**: each wash is stored as absorbance, `−log(pigment) ×
+  density`, and the final colour is `paper × exp(−absorbance)` in linear
+  light. Bleeding, smearing and edge darkening all operate on absorbance, so
+  colours mix subtractively like pigment instead of averaging to grey.
+- **World-space brush direction**: every material chooses a stroke direction
+  on the surface. Walls and slopes follow the contour (`N × up`), roofs and
+  trunks run downhill or vertically, water is horizontal. The direction gets
+  a small noise-driven rotation. Streak noise is stretched ~7× along it in
+  world space, and a screen-space smear follows its projection, stopping at
+  object boundaries.
+- **Edge extraction** (`edges.wgsl`): from the G-buffer rather than colour,
+  so it is noise-free and moves with the geometry. Only the nearer side of a
+  depth or id discontinuity draws, and creases come from normal differences
+  within an object. Ink width, pressure and breaks vary with surface noise.
+- **Colour bleeding** (`bleed.wgsl`): separable blur of absorbance where
+  each tap is weighted by the wetness of both the centre and the sample.
+  Pigment only runs between washes that are both wet, while dry washes keep
+  hard edges. Wet areas are blobs of surface noise per material (foliage,
+  water and sky wettest), so blooms are irregular but stable.
+- **Paper** (`composite.wgsl`): a procedural cold-press sheet (round tooth
+  plus faint fibres). Pigment interacts with it through granulation (more
+  pigment in the valleys), dry brush (thin washes skip the peaks), wobble
+  (the image is displaced by the grain) and edge darkening (pigment collects
+  at the rim of each wash). Raking light over the relief finishes it.
+
+### Temporal coherence
+
+Stylisation noise is where camera motion breaks NPR. Screen-space noise
+stays put while the scene moves under it (the "shower door" effect). Plain
+world-space noise follows surfaces, but shrinks into aliasing far away and
+blows up close to the camera.
+
+- **Depth-adaptive world noise** (`noise.wgsl`, after Bénard et al.,
+  *Dynamic Solid Textures for Real-Time Coherent Stylization*, 2009): two
+  octaves of world-space noise one octave apart, chosen from the pixel's
+  distance so features stay a fixed number of pixels wide, and blended by
+  the fractional octave with a variance-preserving weight. Pigment
+  turbulence, glaze jitter, streaks, wet areas, ink pressure and the
+  pigment-paper grain all use it. The sky uses the same idea on view
+  directions.
+- **Dynamic canvas** (after Cunzi et al., *Dynamic Canvas for
+  Non-Photorealistic Walkthroughs*, 2003): the paper sheet is neither glued
+  to the screen nor to surfaces. Each frame a 12×7 grid of rays is cast on the
+  CPU against the terrain, the hits are reprojected into the previous frame,
+  and a least-squares 2D similarity (shift + zoom) is composed into the paper
+  transform. The grain uses two octaves blended by the fractional zoom level
+  (infinite zoom), so its size never drifts.
+- **Split paper**: the sheet's relief stays on the dynamic canvas, but how
+  pigment sat on that sheet (granulation, dry brush, wobble) belongs to the
+  painted surface and uses surface-attached grain. The *Attached to
+  surfaces* paper mode moves the relief there too.
+- **Measured, not eyeballed** (`coherence.wgsl`): every 4th pixel is
+  reprojected into the previous frame through its depth, and the stylised
+  images are compared with bilinear lookup. The HUD shows the mean
+  difference. The *Temporal coherence* folder switches noise space and
+  paper mode to reproduce each failure case.
+
+Reprojection error during a 0.6 rad/s orbit (640×360, 30 fps steps,
+SwiftShader), averaged over 40 frames:
+
+| Noise | Paper | Error (/255) | vs naive |
+|---|---|---|---|
+| screen space | fixed to screen | 8.95 | naive baseline |
+| world, fixed scale | dynamic canvas | 7.05 | −21 % |
+| world, depth-adaptive | dynamic canvas (default) | 6.45 | −28 % |
+| world, depth-adaptive | attached to surfaces | 5.45 | −39 % |
+
+With every paper effect turned off, the same orbit measures 2.1 (world) vs
+3.6 (screen). The rest of the default's error is mostly the sheet relief
+sliding under a moving scene. That is the price of a sheet that still reads
+as paper; attaching it to surfaces removes most of it. A static camera
+measures 0.
+
+### Debug views
+
+Pigment before bleeding, light value, brush direction, edges, wet areas,
+paper height, coherent noise.
+
+### Known limitations
+
+- The dynamic canvas raycasts only the terrain height field on the CPU;
+  buildings and trees don't influence the fitted paper motion.
+- Pixel-sized effects (bleed radius, smear, ink width) are in screen space.
+  They scale with resolution, but a bloom's footprint changes a little as
+  objects approach.
+- The smear direction is the projection of a world direction, so strokes on
+  surfaces seen edge-on can turn noticeably between frames.
+- No pigment simulation (no fluid solve as in Curtis et al. 1997); bleeding
+  and backruns are image-space approximations.
+- Verified in headless Chromium on SwiftShader only.
+
