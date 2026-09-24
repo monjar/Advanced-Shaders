@@ -12,6 +12,8 @@ import portals from './shots-portals.mjs';
 import sdf from './shots-sdf.mjs';
 import blackhole from './shots-blackhole.mjs';
 import magic from './shots-magic.mjs';
+import atmosphere from './shots-atmosphere.mjs';
+import planet from './shots-planet.mjs';
 
 export const SHOTS = {
   ocean: [
@@ -199,4 +201,6 @@ export const SHOTS = {
   sdf,
   blackhole,
   magic,
+  atmosphere,
+  planet,
 };
