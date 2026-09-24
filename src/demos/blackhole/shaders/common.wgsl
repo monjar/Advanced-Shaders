@@ -37,7 +37,7 @@ struct Frame {
   art: vec4f,         // artistic pull strength, step (fraction of r), max steps, escape radius
   disk: vec4f,        // peak temperature (K), optical depth, turbulence, enabled
   diskFx: vec4f,      // Doppler on, gravitational redshift on, intensity mode (0 spectral, 1 g⁴, 2 g³), brightness
-  anim: vec4f,        // disk time (r_s/c), crossfade period, unused, 1 / blackbody luminance at the peak temperature
+  anim: vec4f,        // disk time (r_s/c), crossfade period, light travel time on, 1 / blackbody luminance at the peak temperature
   env: vec4f,         // star brightness, galaxy brightness, footprint mode (0 none, 1 analytic, 2 finite differences), filter width (px)
   sky: vec4f,         // star angular size (rad), beacon size (rad), stars on, galaxy on
   view: vec4f,        // render mode (0 artistic, 1 physical, 2 split), debug view, stats on, unused

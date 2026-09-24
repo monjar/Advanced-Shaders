@@ -111,6 +111,12 @@ render   composite    bloom mix, exposure, ACES, sRGB, debug views, split-screen
     measured in the noise's own anisotropic metric.
   - *Coverage.* `1 - exp(-τ ρ)` per crossing, front to back, so gaps show
     the higher-order images and the sky behind.
+  - *Light travel time.* The coordinate time `dt/dφ = r²/(b(1 - r_s/r))` is
+    integrated with the same stages as u. In the Cartesian form it is
+    `dt/dλ = √(1 - r_s/r_obs)/(1 - r_s/r)`. Each crossing samples the disk at
+    `t_now - Δt`. The secondary and photon-ring images therefore lag the
+    direct image by up to a few tens of r_s/c (the *Light travel time*
+    toggle).
 - **Redshift** (`diskRedshift`). The gas moves on circular geodesics with
   local speed `β = √(M/(r - 2M))` along φ̂ = N × r̂, as a static observer
   measures it. The photon's direction at the hit comes from the plane state
@@ -174,21 +180,26 @@ float64 integrator over 142 sample pixels. One 1080p pixel at 50° is
 
 | Integrator | steps/px (max) | derivative evals/px | mean \|Δ\| vs reference | escape direction error (mean / max) |
 |---|---|---|---|---|
-| plane RK4, dφ = 0.2 | 15.5 (49) | 62 | 0.014/255 | |
-| plane RK4, dφ = 0.08 | 37.3 (120) | 149 | 0.001/255 | 8·10⁻⁶ / 2·10⁻⁵ rad |
-| plane DP5(4), tol 10⁻⁴ | 6.7 (22) | ~40 | 0.067/255 (0.02 % px > 8/255) | |
+| plane RK4, dφ = 0.2 | 15.5 (49) | 62 | 0.064/255 (0.06 % px > 8/255) | |
+| plane RK4, dφ = 0.08 | 37.3 (120) | 149 | 0.004/255 | 8·10⁻⁶ / 2·10⁻⁵ rad |
+| plane DP5(4), tol 10⁻⁴ | 6.7 (22) | ~40 | 0.046/255 | |
 | **plane DP5(4), tol 10⁻⁶ (default)** | 12.5 (31) | ~75 | 0.001/255 | 9·10⁻⁶ / 2·10⁻⁵ rad |
-| Cartesian RK4, step 0.1 r | 41.2 (140) | 165 | 0.08/255 | 1·10⁻⁶ / 1.5·10⁻⁵ rad |
-| artistic, step 0.04 r | 102.6 (388) | 103 | 13.4/255 (21 % px > 8/255) | wrong physics |
+| Cartesian RK4, step 0.1 r | 41.2 (140) | 165 | 0.36/255 (0.03/255 with equal footprints) | 1·10⁻⁶ / 1.5·10⁻⁵ rad |
+| artistic, step 0.04 r | 102.6 (388) | 103 | 12.2/255 (20 % px > 8/255) | wrong physics |
 
 All the geodesic integrators agree far below a pixel. The plane
 integrators' ~10⁻⁵ rad is a float32 floor that does not shrink with the step.
-The Cartesian image differs from the plane reference by 0.08/255 whatever its
-step (k = 0.2 → 0.05 gives the same). Its escape directions are actually
-closer to float64 (10⁻⁶ rad); the lensed galaxy near the Einstein ring is
-magnified enough to show the plane reference's 10⁻⁵ rad. The
-finite-difference footprint costs 24 extra steps/px on top of 12.6 with
-DP5(4); the analytic one costs two more ODE components.
+Coarse RK4 steps show up in the light-travel-time integral first (the disk
+pattern shifts), not in the directions. Most of the Cartesian difference
+comes from its cruder footprints (finite differences for the sky, unlensed
+for the disk). With footprints off in both, it is 0.03/255 whatever its step
+(k = 0.2 → 0.05 gives the same). Its escape directions are actually closer
+to float64 (10⁻⁶ rad); the lensed galaxy near the Einstein ring is magnified
+enough to show the plane reference's 10⁻⁵ rad. The two formulations also
+agree on the light-travel delay at the first disk hit: mean difference
+2·10⁻⁴ r_s/c over 12,900 pixels, at the f16 storage limit, for delays of
+13–60 r_s/c. The finite-difference footprint costs 24 extra steps/px on top
+of 12.6 with DP5(4); the analytic one costs two more ODE components.
 
 Sparkle, measured as frame-to-frame change in a slow orbit (0.0005 rad/frame
 ≈ 0.15 px, 480×270, disk off):
@@ -243,8 +254,9 @@ pixels and the live shadow measurement.
 
 - Schwarzschild only: no spin (Kerr), so no frame dragging and no asymmetric
   shadow.
-- No light-travel-time delay. The disk is drawn at one coordinate time, so
-  higher-order images do not lag behind the direct image as they should.
+- Light travel time delays when each image samples the disk, but the
+  observer's own proper time is not used: the animation runs in coordinate
+  time (a factor √(1 - r_s/r_obs) off for a static observer).
 - The disk is geometrically thin, with no vertical structure,
   self-illumination, corona or jet. Its opacity is a single 1 - e^(-τ) layer
   per crossing. The temperature is a display temperature.

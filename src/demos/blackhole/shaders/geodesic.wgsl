@@ -59,15 +59,18 @@ fn newRay() -> Ray {
 
 // One crossing of the disk annulus at X (radius r). k: unit static-frame
 // direction the photon travels in (towards the camera). fp: pixel footprint on
-// the disk in r_s.
-fn addCrossing(ray: ptr<function, Ray>, X: vec3f, r: f32, k: vec3f, fp: f32, gObs: f32, artistic: bool) {
+// the disk in noise units. delay: coordinate time the light took from X to
+// the camera, so each image shows the disk when that light left it (the
+// higher-order images lag behind the direct one).
+fn addCrossing(ray: ptr<function, Ray>, X: vec3f, r: f32, k: vec3f, fp: f32, gObs: f32, artistic: bool, delay: f32) {
   var e: vec4f;
   var g = 1.0;
+  let time = F.anim.x - select(0.0, delay, F.anim.z > 0.5);
   if (artistic) {
-    e = diskShadeArtistic(X, r, fp);
+    e = diskShadeArtistic(X, r, fp, time);
   } else {
     g = diskRedshift(X, r, k, gObs);
-    e = diskShade(X, r, fp, g);
+    e = diskShade(X, r, fp, g, time);
   }
   (*ray).radiance += (*ray).trans * e.rgb;
   (*ray).trans *= 1.0 - e.a;
@@ -101,6 +104,7 @@ fn traceArtistic(cr: CamRay, disk: bool) -> Ray {
   var v = cr.n;
   let pull = F.art.x;
   let maxSteps = u32(F.art.z);
+  var travelled = 0.0;
   loop {
     if (ray.steps >= maxSteps) { break; }
     let r2 = dot(x, x);
@@ -122,11 +126,12 @@ fn traceArtistic(cr: CamRay, disk: bool) -> Ray {
         let X = mix(x, xn, t);
         let rr = length(X);
         if (rr >= F.diskIn && rr <= F.diskOut) {
-          addCrossing(&ray, X, rr, -v, unlensedDiskFootprint(X, rr, v), 1.0, true);
+          addCrossing(&ray, X, rr, -v, unlensedDiskFootprint(X, rr, v), 1.0, true, travelled + t * ds);
           if (ray.trans < 0.004) { ray.status = ABSORBED; break; }
         }
       }
     }
+    travelled += ds;
     x = xn;
   }
   ray.dir = v;
@@ -141,35 +146,58 @@ fn derivU(s: vec4f) -> vec4f {
   return vec4f(s.y, s.x * (1.5 * s.x - 1.0), s.w, s.z * (3.0 * s.x - 1.0));
 }
 
-fn rk4Plane(s: vec4f, h: f32) -> vec4f {
-  let k1 = derivU(s);
-  let k2 = derivU(s + (0.5 * h) * k1);
-  let k3 = derivU(s + (0.5 * h) * k2);
-  let k4 = derivU(s + h * k3);
-  return s + (h / 6.0) * (k1 + 2.0 * (k2 + k3) + k4);
+// Coordinate time per radian of orbit, dt/dφ = r² / (b (1 - r_s/r)), from
+// dt/dλ = E/(1 - r_s/r) and dφ/dλ = L/r² (b = L/E). It is carried along
+// with the same stages as u; clamped where a stage overshoots the ends.
+fn timeRate(u: f32, invB: f32) -> f32 {
+  let uc = clamp(u, 1e-4, 0.999);
+  return invB / (uc * uc * (1.0 - uc));
 }
 
-struct DPStep {
+struct PlaneStep {
   y: vec4f,
-  k7: vec4f,   // f(y): first stage of the next step (FSAL)
+  k7: vec4f,   // f(y): first stage of the next step (FSAL, Dormand–Prince only)
   err: f32,
+  dt: f32,     // coordinate time elapsed over the step
 };
+
+fn rk4Plane(s: vec4f, h: f32, invB: f32) -> PlaneStep {
+  let k1 = derivU(s);
+  let s2 = s + (0.5 * h) * k1;
+  let k2 = derivU(s2);
+  let s3 = s + (0.5 * h) * k2;
+  let k3 = derivU(s3);
+  let s4 = s + h * k3;
+  let k4 = derivU(s4);
+  var o: PlaneStep;
+  o.y = s + (h / 6.0) * (k1 + 2.0 * (k2 + k3) + k4);
+  o.dt = (h / 6.0) * (timeRate(s.x, invB) + 2.0 * (timeRate(s2.x, invB) + timeRate(s3.x, invB)) + timeRate(s4.x, invB));
+  return o;
+}
 
 // Dormand–Prince 5(4) (Dormand and Prince 1980, the ode45 pair), local
 // extrapolation with the 5th-order solution. The error norm is |δ(u, u')| /
 // |(u, u')|: for a straight line u = sin(φ∞ - φ)/b this is exactly the error
 // in the escape angle, independent of the impact parameter.
-fn dp45Plane(s: vec4f, k1: vec4f, h: f32) -> DPStep {
-  let k2 = derivU(s + h * (0.2 * k1));
-  let k3 = derivU(s + h * ((3.0 / 40.0) * k1 + (9.0 / 40.0) * k2));
-  let k4 = derivU(s + h * ((44.0 / 45.0) * k1 - (56.0 / 15.0) * k2 + (32.0 / 9.0) * k3));
-  let k5 = derivU(s + h * ((19372.0 / 6561.0) * k1 - (25360.0 / 2187.0) * k2 + (64448.0 / 6561.0) * k3 - (212.0 / 729.0) * k4));
-  let k6 = derivU(s + h * ((9017.0 / 3168.0) * k1 - (355.0 / 33.0) * k2 + (46732.0 / 5247.0) * k3 + (49.0 / 176.0) * k4 - (5103.0 / 18656.0) * k5));
-  var o: DPStep;
+fn dp45Plane(s: vec4f, k1: vec4f, h: f32, invB: f32) -> PlaneStep {
+  let s2 = s + h * (0.2 * k1);
+  let k2 = derivU(s2);
+  let s3 = s + h * ((3.0 / 40.0) * k1 + (9.0 / 40.0) * k2);
+  let k3 = derivU(s3);
+  let s4 = s + h * ((44.0 / 45.0) * k1 - (56.0 / 15.0) * k2 + (32.0 / 9.0) * k3);
+  let k4 = derivU(s4);
+  let s5 = s + h * ((19372.0 / 6561.0) * k1 - (25360.0 / 2187.0) * k2 + (64448.0 / 6561.0) * k3 - (212.0 / 729.0) * k4);
+  let k5 = derivU(s5);
+  let s6 = s + h * ((9017.0 / 3168.0) * k1 - (355.0 / 33.0) * k2 + (46732.0 / 5247.0) * k3 + (49.0 / 176.0) * k4 - (5103.0 / 18656.0) * k5);
+  let k6 = derivU(s6);
+  var o: PlaneStep;
   o.y = s + h * ((35.0 / 384.0) * k1 + (500.0 / 1113.0) * k3 + (125.0 / 192.0) * k4 - (2187.0 / 6784.0) * k5 + (11.0 / 84.0) * k6);
   o.k7 = derivU(o.y);
   let e = h * ((71.0 / 57600.0) * k1 - (71.0 / 16695.0) * k3 + (71.0 / 1920.0) * k4 - (17253.0 / 339200.0) * k5 + (22.0 / 525.0) * k6 - (1.0 / 40.0) * o.k7);
   o.err = length(e.xy) / max(length(o.y.xy), 1e-6);
+  // Same 5th-order weights for the time integral (the error norm ignores it).
+  o.dt = h * ((35.0 / 384.0) * timeRate(s.x, invB) + (500.0 / 1113.0) * timeRate(s3.x, invB) + (125.0 / 192.0) * timeRate(s4.x, invB)
+    - (2187.0 / 6784.0) * timeRate(s5.x, invB) + (11.0 / 84.0) * timeRate(s6.x, invB));
   return o;
 }
 
@@ -211,6 +239,8 @@ fn tracePlane(cr: CamRay, disk: bool) -> Ray {
   // impact parameter b = r sin θ / √(1 - r_s/r).)
   let K = u0 * sqrt(1.0 - u0);
   let p0 = -K * nr / sinT;
+  // 1/b from the first integral: 1/b² = u'² + u² - u³.
+  let invB = sqrt(max(p0 * p0 + u0 * u0 * (1.0 - u0), 1e-12));
 
   // Ray differentials. A pixel step dn changes the slope p through θ and
   // rotates the plane about e1 at rate κ (de2 = κ e3).
@@ -243,6 +273,7 @@ fn tracePlane(cr: CamRay, disk: bool) -> Ray {
   var k1 = derivU(s);
   var phiInf = 0.0;
   var dphidp = 0.0;
+  var time = 0.0;
   loop {
     if (ray.steps >= maxSteps) { break; }
     // Inside the photon sphere and falling: u'' > 0 there, so it cannot turn
@@ -253,20 +284,24 @@ fn tracePlane(cr: CamRay, disk: bool) -> Ray {
     let hs = select(h, toCross, land);
     ray.steps += 1u;
     var next: vec4f;
+    var dt: f32;
     if (adaptive) {
-      let st = dp45Plane(s, k1, hs);
+      let st = dp45Plane(s, k1, hs, invB);
       let fac = clamp(0.9 * pow(tol / max(st.err, 1e-12), 0.2), 0.2, 5.0);
       if (st.err > tol && hs > 1e-5) {
         h = hs * fac;
         continue;
       }
       next = st.y;
+      dt = st.dt;
       k1 = st.k7;
       // A step clipped to land on a crossing says nothing against the longer
       // proposal, so don't let it shrink h.
       h = min(select(hs * fac, max(h, hs * fac), land), 0.8);
     } else {
-      next = rk4Plane(s, hs);
+      let st = rk4Plane(s, hs, invB);
+      next = st.y;
+      dt = st.dt;
     }
     if (next.x <= 0.0) {
       // Escaped: u = 0 on the step's Hermite interpolant, a few Newton steps.
@@ -289,6 +324,7 @@ fn tracePlane(cr: CamRay, disk: bool) -> Ray {
     if (next.x >= 1.0 || !finite(next.x)) { ray.status = CAPTURED; break; }
     s = next;
     phi += hs;
+    time += dt;
     if (!land && phi >= phiC) {
       ray.nodes += 1u;
       phiC += PI;
@@ -325,7 +361,7 @@ fn tracePlane(cr: CamRay, disk: bool) -> Ray {
         } else {
           fp = unlensedDiskFootprint(X, r, nloc);
         }
-        addCrossing(&ray, X, r, -nloc, fp, cr.gObs, false);
+        addCrossing(&ray, X, r, -nloc, fp, cr.gObs, false, time);
         if (ray.trans < 0.004) { ray.status = ABSORBED; break; }
       }
     }
@@ -361,6 +397,10 @@ fn traceCartesian(cr: CamRay, disk: bool) -> Ray {
   let L = cross(x, v);
   let h2 = dot(L, L);
   let maxSteps = u32(F.integ.w);
+  // Coordinate time per unit of the pseudo-time: dt/dλ = (h/b) / (1 - r_s/r),
+  // and h/b = √(1 - r_s/r_obs) for this start velocity.
+  let hOverB = sqrt(1.0 - u0);
+  var time = 0.0;
   loop {
     if (ray.steps >= maxSteps) { break; }
     let r = length(x);
@@ -375,6 +415,8 @@ fn traceCartesian(cr: CamRay, disk: bool) -> Ray {
     let a3 = accelCart(x + (0.5 * dt) * v2, h2);
     let v4 = v + dt * a3;
     let a4 = accelCart(x + dt * v3, h2);
+    let dTime = (dt / 6.0) * hOverB * (1.0 / (1.0 - 1.0 / r) + 2.0 / (1.0 - 1.0 / length(x + (0.5 * dt) * v))
+      + 2.0 / (1.0 - 1.0 / length(x + (0.5 * dt) * v2)) + 1.0 / (1.0 - 1.0 / length(x + dt * v3)));
     let xn = x + (dt / 6.0) * (v + 2.0 * (v2 + v3) + v4);
     let vn = v + (dt / 6.0) * (a1 + 2.0 * (a2 + a3) + a4);
     ray.steps += 1u;
@@ -401,11 +443,12 @@ fn traceCartesian(cr: CamRay, disk: bool) -> Ray {
           let rh = X / rr;
           let Vr = dot(V, rh);
           let nloc = normalize(rh * (Vr / sqrt(1.0 - 1.0 / rr)) + (V - rh * Vr));
-          addCrossing(&ray, X, rr, -nloc, unlensedDiskFootprint(X, rr, nloc), cr.gObs, false);
+          addCrossing(&ray, X, rr, -nloc, unlensedDiskFootprint(X, rr, nloc), cr.gObs, false, time + t * dTime);
           if (ray.trans < 0.004) { ray.status = ABSORBED; break; }
         }
       }
     }
+    time += dTime;
     x = xn;
     v = vn;
   }

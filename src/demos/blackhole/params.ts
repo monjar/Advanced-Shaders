@@ -35,6 +35,7 @@ export const DEFAULTS = {
   cycle: 1.0,             // noise cross-fade period in inner-edge orbital periods
   doppler: true,
   gravRedshift: true,
+  lightDelay: true,       // each image shows the disk when its light left it
   intensityMode: 0,       // 0 spectral (T → gT), 1 g⁴ (bolometric), 2 g³ (fixed frequency)
   // Sky
   stars: true,
@@ -145,6 +146,7 @@ export function buildGui(gui: GUI, p: BlackHoleParams, camera: OrbitCamera) {
   disk.add(p, 'cycle', 0.2, 4, 0.01).name('Noise cycle (inner orbits)');
   disk.add(p, 'doppler').name('Doppler beaming');
   disk.add(p, 'gravRedshift').name('Gravitational redshift');
+  disk.add(p, 'lightDelay').name('Light travel time');
   disk.add(p, 'intensityMode', { 'Spectral: T → gT': 0, 'Bolometric: × g⁴': 1, 'Fixed frequency: × g³': 2 }).name('Intensity');
 
   const sky = gui.addFolder('Sky and filtering');

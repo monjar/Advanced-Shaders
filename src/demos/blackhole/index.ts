@@ -250,7 +250,7 @@ class BlackHoleDemo implements Demo {
     // Normalise disk emission by the luminance at the peak temperature, so the
     // temperature slider changes colour (and how strongly g changes the
     // brightness) but not the overall exposure.
-    f.set([this.diskTime, p.cycle * periodIn, 0, Math.pow(2, -blackbodyLog2Luminance(this.bbTable, p.diskTemp))], 64);
+    f.set([this.diskTime, p.cycle * periodIn, p.lightDelay ? 1 : 0, Math.pow(2, -blackbodyLog2Luminance(this.bbTable, p.diskTemp))], 64);
     f.set([p.starBrightness, p.galaxyBrightness, p.footprintMode, p.filterWidth], 68);
     f.set([p.starSizeMicro * 1e-6, p.beaconSizeMicro * 1e-6, p.stars ? 1 : 0, p.galaxy ? 1 : 0], 72);
     f.set([p.renderMode, p.debugView, p.stats ? 1 : 0, 0], 76);
@@ -376,17 +376,18 @@ class BlackHoleDemo implements Demo {
       const pct = (x: number) => `${((100 * x) / px).toFixed(1)}%`;
       text += `\nsteps/px ${(v[ST.steps] / px).toFixed(1)} (max ${v[ST.maxSteps]})`;
       if (v[ST.extraSteps] > 0) text += ` + ${(v[ST.extraSteps] / px).toFixed(1)} for finite differences`;
-      text += `\nescaped ${pct(v[ST.escaped])} · captured ${pct(v[ST.captured])} · in disk ${pct(v[ST.absorbed])} · step limit ${v[ST.limit]} px · non-finite ${v[ST.nonFinite]}`;
-      text += `\ndisk hits ≥1 ${pct(v[ST.order1])} · ≥2 ${pct(v[ST.order2])} · ≥3 ${v[ST.order3]} px · plane crossings m≥2 ${pct(v[ST.nodes2])} · m≥3 ${v[ST.nodes3]} px`;
+      text += `\nescaped ${pct(v[ST.escaped])} · captured ${pct(v[ST.captured])} · in disk ${pct(v[ST.absorbed])} · step limit ${v[ST.limit]} px`;
+      text += `\nnon-finite ${v[ST.nonFinite]} px · disk hits ≥1 ${pct(v[ST.order1])} ≥2 ${pct(v[ST.order2])} ≥3 ${v[ST.order3]} px`;
+      text += `\nimage order m≥2 ${pct(v[ST.nodes2])} · m≥3 ${v[ST.nodes3]} px`;
       const m = this.shadowMeasurement();
       // Only meaningful while the whole shadow is in view.
       const inView = m !== null && Math.tan(m.alpha) < 0.95 * s.tanHalfHeight;
       if (m && inView && s.centred && s.staticObserver && m.captured > 0) {
-        const note = s.diskOn ? ' (disk hides part: turn it off to measure)' : '';
+        const note = s.diskOn ? '\n(disk on: rays it absorbs are not counted, turn it off to measure)' : '';
         if (s.physical) {
           text += `\nshadow b = ${m.b.toFixed(4)} r_s vs 3√3/2 = ${B_CRIT.toFixed(4)} (${((100 * (m.b - B_CRIT)) / B_CRIT).toFixed(2)}%), ${m.frames} frame(s)${note}`;
         } else if (p.renderMode === 0) {
-          text += `\nshadow ${(m.alpha * 180 / Math.PI).toFixed(3)}° vs Schwarzschild ${(m.alphaTheory * 180 / Math.PI).toFixed(3)}° (equiv. b = ${m.b.toFixed(3)} r_s)${note}`;
+          text += `\nshadow ${(m.alpha * 180 / Math.PI).toFixed(3)}° vs Schwarzschild ${(m.alphaTheory * 180 / Math.PI).toFixed(3)}° (b = ${m.b.toFixed(3)} r_s)${note}`;
         }
       }
     }

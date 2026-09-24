@@ -36,14 +36,15 @@ fn diskLayer(r: f32, psi: f32, fpNoise: f32, seed: u32) -> f32 {
   return base + 0.45 * (0.3 - abs(fine));
 }
 
-// Zero-mean-ish turbulence in about [-1, 1]. fpNoise: pixel footprint in noise units.
-fn diskTurbulence(r: f32, psi: f32, fpNoise: f32) -> f32 {
+// Zero-mean-ish turbulence in about [-1, 1]. fpNoise: pixel footprint in noise
+// units, time: coordinate time at emission (r_s/c).
+fn diskTurbulence(r: f32, psi: f32, fpNoise: f32, time: f32) -> f32 {
   let period = F.anim.y;
   let omega = sqrt(0.5 / (r * r * r));
   var acc = 0.0;
   var w2 = 0.0;
   for (var j = 0u; j < 2u; j++) {
-    let tau = F.anim.x / period + 0.5 * f32(j);
+    let tau = time / period + 0.5 * f32(j);
     let cycle = floor(tau);
     let phase = tau - cycle;
     let w = 1.0 - abs(2.0 * phase - 1.0);
@@ -67,10 +68,10 @@ fn diskFootprint(X: vec3f, r: f32, dXx: vec3f, dXy: vec3f) -> f32 {
 }
 
 // Density in [0, ~3]: radial envelope times turbulence.
-fn diskDensity(r: f32, psi: f32, fpNoise: f32) -> f32 {
+fn diskDensity(r: f32, psi: f32, fpNoise: f32, time: f32) -> f32 {
   let inner = smoothstep(F.diskIn, F.diskIn * 1.12, r);
   let outer = 1.0 - smoothstep(0.62 * F.diskOut, F.diskOut, r);
-  let turb = diskTurbulence(r, psi, fpNoise);
+  let turb = diskTurbulence(r, psi, fpNoise, time);
   return inner * outer * clamp(0.6 + F.disk.z * 2.2 * turb, 0.02, 3.0);
 }
 
@@ -100,9 +101,9 @@ fn diskRedshift(X: vec3f, r: f32, k: vec3f, gObs: f32) -> f32 {
 // Emitted radiance times coverage, and coverage α, for one disk crossing.
 // fp: footprint in noise units (diskFootprint). Dense clumps are both more
 // opaque and hotter-looking (emission ∝ ρ^0.5 on top of the coverage).
-fn diskShade(X: vec3f, r: f32, fp: f32, g: f32) -> vec4f {
+fn diskShade(X: vec3f, r: f32, fp: f32, g: f32, time: f32) -> vec4f {
   let psi = diskAzimuth(X);
-  let dens = diskDensity(r, psi, fp);
+  let dens = diskDensity(r, psi, fp, time);
   let alpha = 1.0 - exp(-F.disk.y * dens);
   let T = diskTemperature(r);
   var c: vec3f;
@@ -120,9 +121,9 @@ fn diskShade(X: vec3f, r: f32, fp: f32, g: f32) -> vec4f {
 }
 
 // The artistic stage: same turbulence, a fixed orange-to-white ramp, no redshift.
-fn diskShadeArtistic(X: vec3f, r: f32, fp: f32) -> vec4f {
+fn diskShadeArtistic(X: vec3f, r: f32, fp: f32, time: f32) -> vec4f {
   let psi = diskAzimuth(X);
-  let dens = diskDensity(r, psi, fp);
+  let dens = diskDensity(r, psi, fp, time);
   let alpha = 1.0 - exp(-F.disk.y * dens);
   let heat = smoothstep(F.diskOut, F.diskIn, r);
   let c = mix(vec3f(1.0, 0.32, 0.08), vec3f(1.0, 0.85, 0.65), heat * heat) * (0.1 + 1.2 * heat * heat);
