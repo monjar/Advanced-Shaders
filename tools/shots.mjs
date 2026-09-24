@@ -63,7 +63,7 @@ export const SHOTS = {
       warmup: 40,
       setup: (demo) => {
         Object.assign(demo.params, {
-          windSpeed: 22, fetchKm: 800, swell: 0.1, choppiness: 1.35, foamThreshold: 0.85, foamDecay: 0.25,
+          windSpeed: 22, fetchKm: 800, swell: 0.1, choppiness: 1.25, foamThreshold: 0.68, foamDecay: 0.8,
           sunElevation: 25, turbidity: 9, sunIntensity: 4, skyBoost: 1.4, fog: 0.0006, shoreAmplitude: 1.1,
           scatterColor: [0.02, 0.09, 0.1], exposure: 1.1,
         });

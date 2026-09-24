@@ -76,7 +76,7 @@ export const PRESETS: Record<string, Partial<OceanParams>> = {
   },
   'Trade wind': { windSpeed: 12, fetchKm: 400, swell: 0.2, choppiness: 1.3, sunElevation: 40, sunAzimuth: 150 },
   'Storm': {
-    windSpeed: 22, fetchKm: 800, swell: 0.1, choppiness: 1.35, foamThreshold: 0.85, foamDecay: 0.25,
+    windSpeed: 22, fetchKm: 800, swell: 0.1, choppiness: 1.25, foamThreshold: 0.68, foamDecay: 0.8,
     sunElevation: 25, turbidity: 9, sunIntensity: 4, skyBoost: 1.4, fog: 0.0006, shoreAmplitude: 1.1,
     scatterColor: [0.02, 0.09, 0.1], exposure: 1.1,
   },

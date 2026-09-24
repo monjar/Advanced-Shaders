@@ -35,8 +35,9 @@ node tools/record.mjs all      # or: ocean | clouds
 
 It needs `ffmpeg` with libx264 on `PATH` (or `FFMPEG=/path/to/ffmpeg`). Useful
 flags: `--size 1920x1080`, `--fps 120`, `--crf 18`, `--headed` (some platforms
-only expose the GPU to a visible browser), and `--swiftshader` for machines
-without a GPU. Each shot is cached as a segment in `docs/videos/.segments`, so
+only expose the GPU to a visible browser), `--swiftshader` for machines
+without a GPU, and `--final-crf 26` to re-encode the joined file smaller (the
+committed ocean video uses it). Each shot is cached as a segment in `docs/videos/.segments`, so
 an interrupted run resumes where it stopped. With a real GPU a full run takes
 minutes. The committed videos were rendered on SwiftShader (CPU), at about
 7 s per ocean frame and 1 s per clouds frame.

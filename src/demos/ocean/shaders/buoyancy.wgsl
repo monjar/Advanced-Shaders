@@ -112,8 +112,10 @@ fn simulate(@builtin(global_invocation_id) id: vec3u) {
 
     // Vertical: gravity + buoyancy proportional to submerged volume + drag.
     let buoyancy = 9.81 * a.b.x * submerged;
-    let drag = -b.vel.y * (0.3 + 3.0 * submerged);
-    b.vel.y += (-9.81 + buoyancy + drag) * dt;
+    let drag = -b.vel.y * (0.3 + 6.0 * submerged);
+    // Cap the rise speed: light bodies riding a fast crest otherwise overshoot
+    // and get launched ballistically.
+    b.vel.y = clamp(b.vel.y + (-9.81 + buoyancy + drag) * dt, -15.0, 4.0);
 
     // Horizontal: follow the orbital motion of the waves around the anchor.
     let targetXZ = vec2f(a.a.x, a.a.y) + water.drift * 0.6;

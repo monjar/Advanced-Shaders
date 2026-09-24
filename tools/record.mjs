@@ -9,7 +9,8 @@
 //   --out <dir>        output directory (default docs/videos)
 //   --fps <n>          frame rate (default 60)
 //   --size <WxH>       resolution (default 1280x720)
-//   --crf <n>          x264 quality, lower is better (default 20)
+//   --crf <n>          x264 quality of the cached segments, lower is better (default 20)
+//   --final-crf <n>    re-encode the joined video at this quality (default: copy segments)
 //   --frames <n>       stop each shot after n frames (quick tests)
 //   --swiftshader      force the CPU WebGPU fallback (for machines without a GPU)
 //   --headed           show the browser window (some platforms only expose the GPU headed)
@@ -39,6 +40,7 @@ const outDir = option('out', 'docs/videos');
 const fps = Number(option('fps', 60));
 const [width, height] = option('size', '1280x720').split('x').map(Number);
 const crf = option('crf', '20');
+const finalCrf = option('final-crf', null);
 const maxFrames = Number(option('frames', Infinity));
 const ffmpegBin = process.env.FFMPEG ?? 'ffmpeg';
 
@@ -133,7 +135,10 @@ async function record(demoId, shots) {
 async function join_(demoId, file, segments) {
   const list = join(outDir, '.segments', `${demoId}-list.txt`);
   writeFileSync(list, segments.map((f) => `file '${f.split('/').pop()}'`).join('\n') + '\n');
-  await runFfmpeg(['-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-movflags', '+faststart', file]).done;
+  const codec = finalCrf
+    ? ['-c:v', 'libx264', '-preset', 'slow', '-crf', finalCrf, '-pix_fmt', 'yuv420p']
+    : ['-c', 'copy'];
+  await runFfmpeg(['-f', 'concat', '-safe', '0', '-i', list, ...codec, '-movflags', '+faststart', file]).done;
   rmSync(list);
   const frames = shots(demoId).reduce((n, s) => n + Math.min(Math.round(s.seconds * fps), maxFrames), 0);
   console.log(`${file}: ${frames} frames, ${(frames / fps).toFixed(1)} s at ${fps} fps, ${width}x${height}`);
