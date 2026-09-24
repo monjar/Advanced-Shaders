@@ -7,6 +7,9 @@
 // `warmup` frames are rendered but not recorded, so simulations and temporal
 // history settle before the shot begins.
 
+// Per-study shot lists that live in their own files.
+import portals from './shots-portals.mjs';
+
 export const SHOTS = {
   ocean: [
     {
@@ -189,4 +192,5 @@ export const SHOTS = {
       },
     },
   ],
+  portals,
 };
