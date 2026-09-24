@@ -9,6 +9,7 @@
 
 // Per-study shot lists that live in their own files.
 import portals from './shots-portals.mjs';
+import sdf from './shots-sdf.mjs';
 
 export const SHOTS = {
   ocean: [
@@ -193,4 +194,5 @@ export const SHOTS = {
     },
   ],
   portals,
+  sdf,
 };
