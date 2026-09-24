@@ -45,7 +45,7 @@ export interface Preset {
 export const PRESETS: Record<string, Preset> = {
   'Through one portal': { camera: { eye: [-1.2, 1.65, -5.6], at: [-3, 1.4, -9.99] }, params: { maxDepth: 4 } },
   'Recursive corridor': { camera: { eye: [106.35, 1.65, -5.2], at: [106, 1.45, -8.99] }, params: { maxDepth: 8 } },
-  'Object crossing': { camera: { eye: [-99.6, 1.65, -3.6], at: [-103, 0.9, -6.64] }, params: { animate: false, objectTime: 8.0 } },
+  'Object crossing': { camera: { eye: [-99.6, 1.65, -3.6], at: [-103, 0.9, -6.64] }, params: { objectTime: 6.6 } },
   'Walk through': { camera: { eye: [-3.1, 1.65, -5.5], at: [-3, 1.55, -9.99] }, params: { autoWalk: 1.3 } },
   'Portals in portals': { camera: { eye: [5, 1.65, 6.2], at: [-6, 1.6, -4] }, params: { maxDepth: 6 } },
 };
@@ -72,7 +72,7 @@ export function buildGui(gui: GUI, p: PortalParams, applyPreset: (name: string) 
   rec.add(p, 'maxViews', 1, 64, 1).name('View budget');
   rec.add(p, 'minRectPx', 0, 64, 1).name('Min portal size px');
   const refs: Record<string, number> = { 'Off': -1 };
-  portalNames.forEach((n, i) => (refs[`Behind ${n}'s partner`] = i));
+  portalNames.forEach((n, i) => (refs[`Through ${n}`] = i));
   rec.add(p, 'referenceView', refs).name('Reference camera');
 
   const look = gui.addFolder('Portal look');

@@ -7,7 +7,7 @@ import {
   PORTAL_HALF_HEIGHT, PORTAL_HALF_WIDTH, insideOpening, intersectRect, m4, obliqueProjection, planeDist, planeToView, portalRect,
   type Portal, type Rect, type Vec4,
 } from './portal-math';
-import { LAYOUT, LOCATION_NAMES, VERTEX_STRIDE, buildScene, locationOf, portalCupMesh, portalRingMesh, type Range } from './scene';
+import { LAYOUT, LOCATION_NAMES, SUN_DIRECTIONS, VERTEX_STRIDE, buildScene, locationOf, portalCupMesh, portalRingMesh, type Range } from './scene';
 
 import commonWgsl from './shaders/common.wgsl?raw';
 import portalWgsl from './shaders/portal.wgsl?raw';
@@ -101,8 +101,10 @@ class PortalsDemo implements Demo {
   // Camera and world state.
   private prevEye: Vec3 | null = null;
   private teleports = 0;
+  private walkedSinceTeleport: number | null = null;
   private objects: ObjectInstance[] = [];
   private straddling = 0;
+  private occluderCount = 0;
   private root: ViewNode | null = null;
   private viewCount = 0;
   private drawCalls = 0;
@@ -280,6 +282,7 @@ class PortalsDemo implements Demo {
   applyPreset(name: string) {
     const preset = PRESETS[name];
     Object.assign(this.params, structuredClone(DEFAULTS), structuredClone(preset.params));
+    this.walkedSinceTeleport = null;
     this.setPose(preset.camera.eye, preset.camera.at);
   }
 
@@ -290,6 +293,14 @@ class PortalsDemo implements Demo {
     cam.distance = EYE_OFFSET;
     if (p.autoWalk !== 0) {
       cam.target = vec3.add(cam.target, vec3.scale([-Math.sin(cam.yaw), 0, -Math.cos(cam.yaw)], p.autoWalk * dt));
+      // Walk on for a few metres after going through, then stop.
+      if (this.walkedSinceTeleport !== null) {
+        this.walkedSinceTeleport += Math.abs(p.autoWalk) * dt;
+        if (this.walkedSinceTeleport > 3) {
+          p.autoWalk = 0;
+          this.walkedSinceTeleport = null;
+        }
+      }
     }
     if (p.walkMode) cam.target[1] = EYE_HEIGHT - EYE_OFFSET * Math.sin(cam.pitch);
     cam.update(0, aspect);
@@ -311,6 +322,7 @@ class PortalsDemo implements Demo {
         cam.yaw += q.yawDelta;
         cam.update(0, aspect);
         this.teleports++;
+        if (p.autoWalk !== 0) this.walkedSinceTeleport = 0;
         break;
       }
     }
@@ -423,7 +435,12 @@ class PortalsDemo implements Demo {
           continue;
         }
         const t = through(q, node.view, node.eye);
-        if (!t.proj) continue; // no view direction reaches beyond the destination
+        if (!t.proj) {
+          // No view direction reaches beyond the destination (only at grazing
+          // angles, by rounding): fill rather than leave the carved hole open.
+          node.children.push({ portal: q.index, rect, node: null });
+          continue;
+        }
         const child = makeNode(t.view, t.proj, t.eye, rect, node.level + 1, node.depth + 1, t.dest.index, t.dest.plane, q, t.oblique);
         node.children.push({ portal: q.index, rect, node: child });
         expand(child);
@@ -464,10 +481,9 @@ class PortalsDemo implements Demo {
     LAYOUT.hangarLights.forEach((l, i) => g.set([...l.pos, 70], 256 + i * 4));
 
     // Sun shadow maps for the courtyard and the forest.
-    const sun = (loc: number): Vec3 => (loc === 0 ? vec3.normalize([-0.55, 0.6, 0.58]) : vec3.normalize([0.45, 0.78, 0.43]));
     this.shadowMats = [
-      { centre: [0, 0, 0] as Vec3, r: 15, s: sun(0) },
-      { centre: [-100, 0, 0] as Vec3, r: 30, s: sun(2) },
+      { centre: [0, 0, 0] as Vec3, r: 15, s: SUN_DIRECTIONS[0] },
+      { centre: [-100, 0, 0] as Vec3, r: 30, s: SUN_DIRECTIONS[2] },
     ].map(({ centre, r, s }) => {
       const view = mat4.lookAt(vec3.add(centre, vec3.scale(s, 60)), centre, [0, 1, 0]);
       return mat4.multiply(mat4.orthographic(-r, r, -r, r, 1, 120), view);
@@ -487,21 +503,20 @@ class PortalsDemo implements Demo {
     this.drawData.set(flags, o + 20);
   }
 
-  private writeView(node: ViewNode | { slot: number; viewProj: Mat4; view: Mat4; eye: Vec3 }, extra?: ViewNode) {
-    const o = (node.slot * SLOT) / 4;
+  /** View uniforms; `node` omitted for the shadow views (only the matrix is used). */
+  private writeView(slot: number, viewProj: Mat4, view: Mat4, eye: Vec3, node?: ViewNode) {
+    const o = (slot * SLOT) / 4;
     const v = this.viewData;
-    v.set(node.viewProj, o);
-    v.set(mat4.invert(node.view), o + 16);
-    v.set(node.eye, o + 32);
-    const cam = this.camera;
-    const tanY = Math.tan(cam.fovY / 2);
-    if (extra) {
-      v[o + 35] = extra.level;
-      v.set(extra.clip, o + 36);
-      v.set([...extra.fadeColour, extra.fade], o + 40);
-      v.set([tanY * (this.width / this.height), tanY, extra.slot, extra.location], o + 44);
-      v.set([this.width, this.height, extra.oblique ? 1 : 0, 0], o + 48);
-    }
+    v.set(viewProj, o);
+    v.set(mat4.invert(view), o + 16);
+    v.set(eye, o + 32);
+    if (!node) return;
+    const tanY = Math.tan(this.camera.fovY / 2);
+    v[o + 35] = node.level;
+    v.set(node.clip, o + 36);
+    v.set([...node.fadeColour, node.fade], o + 40);
+    v.set([tanY * (this.width / this.height), tanY, node.slot, node.location], o + 44);
+    v.set([this.width, this.height, node.oblique ? 1 : 0, 0], o + 48);
   }
 
   private writeFrameData(time: number) {
@@ -510,13 +525,13 @@ class PortalsDemo implements Demo {
     this.rects = [];
     this.maxLevel = 0;
     const walk = (n: ViewNode) => {
-      this.writeView(n, n);
+      this.writeView(n.slot, n.viewProj, n.view, n.eye, n);
       this.maxLevel = Math.max(this.maxLevel, n.level);
       if (n.level > 0) this.rects.push({ rect: n.rect, level: n.level });
       n.children.forEach((c) => c.node && walk(c.node));
     };
     walk(this.root!);
-    this.shadowMats.forEach((m, i) => this.writeView({ slot: MAX_VIEWS + i, viewProj: m, view: mat4.identity(), eye: [0, 0, 0] }));
+    this.shadowMats.forEach((m, i) => this.writeView(MAX_VIEWS + i, m, mat4.identity(), [0, 0, 0]));
     this.device.queue.writeBuffer(this.viewUBO, 0, this.viewData, 0, (VIEW_SLOTS * SLOT) / 4);
 
     this.objects.forEach((o) => this.writeDraw(o.slot, o.model, o.clip, [0, o.crossing * 0.5, 0, 1]));
@@ -535,8 +550,6 @@ class PortalsDemo implements Demo {
     });
     this.device.queue.writeBuffer(this.postUBO, 0, q);
   }
-
-  private occluderCount = 0;
 
   // --- Frame ---------------------------------------------------------------------
 

@@ -133,6 +133,7 @@ fn fogParams(loc: u32) -> vec4f {
   }
 }
 
+// Keep in sync with SUN_DIRECTIONS in scene.ts.
 fn locationSunDir(loc: u32) -> vec3f {
   if (loc == 0u) { return normalize(vec3f(-0.55, 0.6, 0.58)); }
   return normalize(vec3f(0.45, 0.78, 0.43));

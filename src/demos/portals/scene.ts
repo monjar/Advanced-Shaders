@@ -16,6 +16,12 @@ export const LOCATION_NAMES = ['courtyard', 'hangar', 'forest'];
 export const LOCATION_CENTRES: Vec3[] = [[0, 0, 0], [100, 0, 0], [-100, 0, 0]];
 
 /** Which location a world position belongs to (they are 100 m apart). */
+/** Towards the sun, per location (the hangar has none). Keep in sync with locationSunDir() in common.wgsl. */
+export const SUN_DIRECTIONS: Vec3[] = [[-0.55, 0.6, 0.58], [0, 1, 0], [0.45, 0.78, 0.43]].map((d) => {
+  const l = Math.hypot(d[0], d[1], d[2]);
+  return [d[0] / l, d[1] / l, d[2] / l] as Vec3;
+});
+
 export const locationOf = (p: Vec3): Loc => (p[0] > 50 ? Loc.Hangar : p[0] < -50 ? Loc.Forest : Loc.Courtyard);
 
 // Keep in sync with scene.wgsl.

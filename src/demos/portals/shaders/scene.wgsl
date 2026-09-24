@@ -92,7 +92,19 @@ fn blocks(uv: vec2f, size: vec2f) -> vec3f {
   return vec3f(cell, edge);
 }
 
-fn surface(in: VSOut, n: vec3f) -> Surface {
+// Joint lines (half-width w metres at distance d from the joint) filtered over
+// the pixel footprint f: an antialiased edge up close, fading to the pattern's
+// mean coverage `avg` once a pixel spans a whole block, so distant walls don't shimmer.
+fn joints(d: f32, w: f32, f: f32, avg: f32, block: f32) -> f32 {
+  let edge = 1.0 - smoothstep(w - 0.5 * f, w + 0.5 * f, d);
+  return mix(edge, avg, smoothstep(0.15 * block, 0.6 * block, f));
+}
+
+fn gridCoverage(w: f32, size: vec2f) -> f32 {
+  return 1.0 - (1.0 - 2.0 * w / size.x) * (1.0 - 2.0 * w / size.y);
+}
+
+fn surface(in: VSOut, n: vec3f, fw: f32) -> Surface {
   var s: Surface;
   s.albedo = in.albedo;
   s.rough = 0.7;
@@ -107,7 +119,7 @@ fn surface(in: VSOut, n: vec3f) -> Surface {
       let v = hash21(b.xy);
       let grime = fbm3(p * 1.3);
       s.albedo *= (0.78 + 0.34 * v) * vec3f(1.0, 0.97 - 0.06 * v, 0.92 - 0.1 * v) * (0.8 + 0.35 * grime);
-      let joint = 1.0 - smoothstep(0.006, 0.014, b.z);
+      let joint = joints(b.z, 0.01, fw, gridCoverage(0.01, vec2f(0.56, 0.26)), 0.26);
       s.albedo = mix(s.albedo, vec3f(0.6, 0.53, 0.44), joint);
       s.cavity = 1.0 - 0.45 * joint;
       s.rough = 0.85;
@@ -116,7 +128,7 @@ fn surface(in: VSOut, n: vec3f) -> Surface {
       let b = blocks(p.xz + vec2f(0.3, 0.1), vec2f(1.1, 0.75));
       let v = hash21(b.xy + 7.0);
       s.albedo *= (0.8 + 0.3 * v) * (0.85 + 0.3 * fbm2(p.xz * 3.0));
-      let joint = 1.0 - smoothstep(0.008, 0.02, b.z);
+      let joint = joints(b.z, 0.014, fw, gridCoverage(0.014, vec2f(1.1, 0.75)), 0.75);
       s.albedo = mix(s.albedo, vec3f(0.32, 0.27, 0.22), joint);
       s.cavity = 1.0 - 0.5 * joint;
       s.rough = mix(0.75, 0.5, v);
@@ -126,8 +138,8 @@ fn surface(in: VSOut, n: vec3f) -> Surface {
       let cell = floor(uv / vec2f(2.0, 1.5));
       let f = fract(uv / vec2f(2.0, 1.5)) * vec2f(2.0, 1.5);
       let edge = min(min(f.x, 2.0 - f.x), min(f.y, 1.5 - f.y));
-      let seam = 1.0 - smoothstep(0.008, 0.016, edge);
-      let rivet = 1.0 - smoothstep(0.012, 0.02, length(abs(f - vec2f(1.0, 0.75)) - vec2f(0.92, 0.67)));
+      let seam = joints(edge, 0.012, fw, gridCoverage(0.012, vec2f(2.0, 1.5)), 1.5);
+      let rivet = (1.0 - smoothstep(0.012, 0.02 + fw, length(abs(f - vec2f(1.0, 0.75)) - vec2f(0.92, 0.67)))) * (1.0 - smoothstep(0.01, 0.04, fw));
       s.albedo *= (0.85 + 0.25 * hash21(cell)) * (0.9 + 0.2 * fbm2(uv * 4.0));
       s.albedo = mix(s.albedo, s.albedo * 0.35, seam) + rivet * 0.08;
       s.cavity = 1.0 - 0.6 * seam;
@@ -137,7 +149,7 @@ fn surface(in: VSOut, n: vec3f) -> Surface {
     case HANGAR_FLOOR: {
       let f = fract(p.xz / 1.5) * 1.5;
       let edge = min(min(f.x, 1.5 - f.x), min(f.y, 1.5 - f.y));
-      let seam = 1.0 - smoothstep(0.01, 0.02, edge);
+      let seam = joints(edge, 0.015, fw, gridCoverage(0.015, vec2f(1.5)), 1.5);
       s.albedo *= (0.85 + 0.3 * hash21(floor(p.xz / 1.5))) * (0.8 + 0.4 * fbm2(p.xz * 2.0));
       s.albedo = mix(s.albedo, vec3f(0.02), seam);
       s.cavity = 1.0 - 0.5 * seam;
@@ -220,10 +232,10 @@ fn surface(in: VSOut, n: vec3f) -> Surface {
       let r = length(face);
       let ring = smoothstep(0.012, 0.0, abs(r - 0.13));
       let bevel = smoothstep(0.2, 0.235, max(abs(face.x), abs(face.y)));
-      s.albedo = mix(vec3f(0.62, 0.64, 0.68), vec3f(0.35, 0.36, 0.4), bevel);
+      s.albedo = mix(vec3f(0.5, 0.52, 0.56), vec3f(0.3, 0.31, 0.35), bevel);
       s.emission = vec3f(1.0, 0.45, 0.1) * ring * 5.0;
-      s.rough = 0.4;
-      s.metal = 0.5;
+      s.rough = 0.62;
+      s.metal = 0.25;
     }
     default: {}
   }
@@ -290,11 +302,11 @@ fn ambientOcclusion(loc: u32, p: vec3f, n: vec3f) -> f32 {
   return ao;
 }
 
-fn shade(in: VSOut, frontFacing: bool) -> vec3f {
+fn shade(in: VSOut, frontFacing: bool, fw: f32) -> vec3f {
   let p = in.world;
   var n0 = normalize(in.normal);
   if (!frontFacing) { n0 = -n0; }
-  let s = surface(in, n0);
+  let s = surface(in, n0, fw);
   let n = s.n;
   let v = normalize(V.camPos - p);
   let loc = locationOf(p);
@@ -371,6 +383,9 @@ fn applyFog(c: vec3f, p: vec3f) -> vec3f {
 
 @fragment
 fn fs(in: VSOut, @builtin(front_facing) frontFacing: bool) -> Targets {
+  // Pixel footprint in metres, for filtering the procedural patterns
+  // (taken first, in uniform control flow).
+  let fw = length(fwidth(in.world));
   // Per-draw clip plane: the part of an object that has already gone through
   // a portal (fragment discard: clip distances are an optional feature).
   if (dot(D.clip.xyz, in.world) + D.clip.w < 0.0) { discard; }
@@ -384,7 +399,7 @@ fn fs(in: VSOut, @builtin(front_facing) frontFacing: bool) -> Targets {
       if (l.z < 0.004 && l.z > -P.colour.w && dot(e, e) < 0.994) { discard; }
     }
   }
-  var c = applyFog(shade(in, frontFacing), in.world);
+  var c = applyFog(shade(in, frontFacing, fw), in.world);
   c = mix(c, V.fadeColour, V.fade);
   var out: Targets;
   out.colour = vec4f(c, 1.0);
