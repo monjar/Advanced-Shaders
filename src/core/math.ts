@@ -69,6 +69,19 @@ export const mat4 = {
     return m;
   },
 
+  /** Orthographic projection with WebGPU's [0, 1] depth range (near → 0). */
+  orthographic(left: number, right: number, bottom: number, top: number, near: number, far: number): Mat4 {
+    const m = new Float32Array(16);
+    m[0] = 2 / (right - left);
+    m[5] = 2 / (top - bottom);
+    m[10] = -1 / (far - near);
+    m[12] = -(right + left) / (right - left);
+    m[13] = -(top + bottom) / (top - bottom);
+    m[14] = -near / (far - near);
+    m[15] = 1;
+    return m;
+  },
+
   invert(m: Mat4): Mat4 {
     const inv = new Float32Array(16);
     inv[0] = m[5] * m[10] * m[15] - m[5] * m[11] * m[14] - m[9] * m[6] * m[15] + m[9] * m[7] * m[14] + m[13] * m[6] * m[11] - m[13] * m[7] * m[10];

@@ -80,6 +80,54 @@ export const SHOTS = {
     },
   ],
 
+  watercolour: [
+    {
+      name: 'orbit around the cottage',
+      seconds: 8,
+      warmup: 2,
+      setup: (demo) => {
+        demo.camera.target = [2, 2.5, 4];
+      },
+      update: (demo, t, u) => {
+        const c = demo.camera;
+        c.yaw = lerp(0.2, 1.5, u);
+        c.distance = 38;
+        c.pitch = lerp(0.32, 0.26, u);
+      },
+    },
+    {
+      name: 'pen and wash, dolly in',
+      seconds: 6,
+      warmup: 2,
+      setup: (demo) => {
+        Object.assign(demo.params, { ink: 0.85, bleedRadius: 9, wetAreas: 0.25, midGlaze: 0.6, shadowGlaze: 0.75, edgeDarkening: 0.6 });
+      },
+      update: (demo, t, u) => {
+        const c = demo.camera;
+        c.yaw = lerp(1.1, 1.45, ease(u));
+        c.distance = lerp(46, 20, ease(u));
+        c.pitch = lerp(0.36, 0.2, ease(u));
+      },
+    },
+    {
+      name: 'wet-in-wet, low sun',
+      seconds: 6,
+      warmup: 2,
+      setup: (demo) => {
+        Object.assign(demo.params, {
+          ink: 0, bleedRadius: 30, wetAreas: 0.7, edgeDarkening: 1.3, streaks: 0.15, bandSoftness: 0.1, dryBrush: 0.2,
+          midGlaze: 0.75, shadowGlaze: 0.85, sunElevation: 16,
+        });
+      },
+      update: (demo, t, u) => {
+        const c = demo.camera;
+        c.yaw = lerp(2.5, 3.3, u);
+        c.distance = 34;
+        c.pitch = 0.28;
+      },
+    },
+  ],
+
   clouds: [
     {
       name: 'fair-weather cumulus, time-lapse wind',
