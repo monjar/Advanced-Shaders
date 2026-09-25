@@ -36,12 +36,14 @@ Each study is a self-contained "demo" registered in a shared scene shell
 - [`docs/videos/portals.mp4`](docs/videos/portals.mp4): parallax through a
   portal, the recursive corridor, objects crossing, walking through, and the
   recursion-depth debug view.
-- [`docs/videos/blackhole.mp4`](docs/videos/blackhole.mp4): edge-on and
-  face-on disks, the Einstein ring and a photon-ring close-up.
-- [`docs/videos/magic.mp4`](docs/videos/magic.mp4): crystal, obsidian, arcane
-  metal and void stone, with field-driven particles.
-- [`docs/videos/atmosphere.mp4`](docs/videos/atmosphere.mp4): a day from
-  sunrise to twilight, a climb to orbit, and a Mars sunset.
+- [`docs/videos/blackhole.mp4`](docs/videos/blackhole.mp4): the edge-on disk,
+  an inclination sweep to face-on, artistic vs geodesic split screen, a star
+  forming an Einstein ring, and a zoom into the photon ring.
+- [`docs/videos/magic.mp4`](docs/videos/magic.mp4): enchanted crystal, cursed
+  obsidian, arcane metal, frozen soul ice and void stone.
+- [`docs/videos/atmosphere.mp4`](docs/videos/atmosphere.mp4): a sunset
+  time-lapse over mountains, a climb from the ground to low orbit, the
+  terminator from orbit, and a blue Martian sunset.
 
 They are rendered offline, one fixed 1/60 s step per frame, so they are smooth
 regardless of how fast the machine renders. To re-record (for example after
