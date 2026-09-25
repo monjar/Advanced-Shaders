@@ -10,6 +10,8 @@ const hud = document.querySelector<HTMLDivElement>('#hud')!;
 const errorEl = document.querySelector<HTMLDivElement>('#error')!;
 const list = document.querySelector<HTMLElement>('#demo-list')!;
 const info = document.querySelector<HTMLElement>('#demo-info')!;
+const picker = document.querySelector<HTMLSelectElement>('#demo-select')!;
+const narrow = window.matchMedia('(max-width: 720px)');
 
 const params = new URLSearchParams(location.search);
 const renderScale = Math.min(2, Math.max(0.25, Number(params.get('scale')) || 1));
@@ -28,7 +30,15 @@ if (capture) {
 
 function showError(message: string) {
   errorEl.hidden = false;
-  errorEl.textContent = message;
+  errorEl.replaceChildren();
+  const text = document.createElement('p');
+  text.textContent = message;
+  const more = document.createElement('p');
+  const link = document.createElement('a');
+  link.href = 'https://github.com/monjar/Advanced-Shaders#readme';
+  link.textContent = 'screenshots, videos and write-ups of every study';
+  more.append('The repository has ', link, '.');
+  errorEl.append(text, more);
 }
 
 function buildNav() {
@@ -39,7 +49,9 @@ function buildNav() {
     a.dataset.id = d.id;
     a.innerHTML = `<span class="num">${String(i + 1).padStart(2, '0')}</span>${d.title}<span class="tags">${d.tags.join(' · ')}</span>`;
     list.appendChild(a);
+    picker.add(new Option(`${String(i + 1).padStart(2, '0')} · ${d.title}`, d.id));
   });
+  picker.addEventListener('change', () => (location.hash = `#/${picker.value}`));
 }
 
 async function start() {
@@ -75,15 +87,29 @@ async function start() {
       current.demo.destroy();
       current.gui.destroy();
       current.camera.detach();
+      current = null;
     }
+    errorEl.hidden = true;
     for (const a of list.querySelectorAll('a')) a.classList.toggle('active', a.dataset.id === entry.id);
+    picker.value = entry.id;
     info.innerHTML = entry.info;
 
     const gui = new GUI({ title: entry.title, container: canvas.parentElement! });
+    if (narrow.matches) gui.close();
     const camera = new OrbitCamera();
     camera.attach(canvas);
-    const demo = entry.create({ device: gpu.device, canvas, format: gpu.format, gui, camera });
-    demo.resize(width, height);
+    let demo: Demo;
+    try {
+      demo = entry.create({ device: gpu.device, canvas, format: gpu.format, gui, camera });
+      demo.resize(width, height);
+    } catch (e) {
+      // Keep the page usable: report the failure and let the user pick another scene.
+      gui.destroy();
+      camera.detach();
+      console.error(e);
+      showError(`${entry.title} could not start on this device: ${(e as Error).message}`);
+      return;
+    }
     current = { entry, demo, gui, camera, started: performance.now() };
     // Handy for poking at a demo from the devtools console.
     (window as unknown as { demo: Demo }).demo = demo;

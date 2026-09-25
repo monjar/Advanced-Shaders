@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Advanced Shaders</title>
+    <meta name="description" content="Real-time WebGPU shader studies: FFT ocean, volumetric clouds, watercolour, portals, SDF world, black hole, magical materials, atmospheric scattering and a procedural planet." />
     <link rel="icon" href="data:," />
   </head>
   <body>
@@ -14,8 +15,10 @@
       </header>
       <nav id="demo-list"></nav>
       <section id="demo-info"></section>
+      <footer><a href="https://github.com/monjar/Advanced-Shaders">Source, write-ups and videos on GitHub</a></footer>
     </aside>
     <main id="stage">
+      <select id="demo-select" aria-label="Scene"></select>
       <canvas id="gfx"></canvas>
       <div id="hud"></div>
       <div id="error" hidden></div>

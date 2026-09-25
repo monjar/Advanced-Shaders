@@ -1,5 +1,9 @@
 # Advanced Shaders
 
+**Live:** https://monjar.github.io/Advanced-Shaders/ (one page; pick a study in
+the sidebar, or the dropdown on phones; each has a direct link such as
+`#/blackhole`). Needs a WebGPU browser.
+
 A WebGPU/WGSL playground for studying advanced real-time shading techniques.
 Each study is a self-contained "demo" registered in a shared scene shell
 (sidebar navigation, orbit camera, parameter GUI, HDR pipeline).
@@ -83,6 +87,15 @@ WebGPU enabled. `?scale=0.5` renders at half resolution on slow GPUs.
 Controls: drag to orbit, right-drag to pan, wheel to zoom, `WASD` to move,
 `Q`/`E` to go down/up, and `Shift`+drag on the water to move a floating object.
 The active demo is exposed as `window.demo` in the devtools console.
+
+### Deployment
+
+`.github/workflows/pages.yml` builds with `npm run build` and publishes `dist/`
+to GitHub Pages on every push to `main` (or on demand from the Actions tab).
+One-time setup in the repository: *Settings → Pages → Build and deployment →
+Source: GitHub Actions*. The build uses relative asset paths (`base: './'`),
+so it works from the `/Advanced-Shaders/` sub-path, and hash routing means no
+server-side rewrites are needed.
 
 ## Layout
 

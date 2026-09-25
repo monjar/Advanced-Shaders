@@ -6,7 +6,7 @@ export interface GpuContext {
 }
 
 export async function initWebGPU(canvas: HTMLCanvasElement): Promise<GpuContext> {
-  if (!('gpu' in navigator)) {
+  if (!navigator.gpu) {
     throw new Error('WebGPU is not available in this browser. Use a recent Chrome, Edge or Safari, or Firefox with WebGPU enabled.');
   }
   const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
