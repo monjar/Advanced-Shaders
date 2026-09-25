@@ -33,6 +33,15 @@ Each study is a self-contained "demo" registered in a shared scene shell
   climb through the cloud layer, sunset into the sun, overcast clearing up.
 - [`docs/videos/watercolour.mp4`](docs/videos/watercolour.mp4): an orbit around
   the cottage, a pen-and-wash dolly-in, wet-in-wet under a low sun.
+- [`docs/videos/portals.mp4`](docs/videos/portals.mp4): parallax through a
+  portal, the recursive corridor, objects crossing, walking through, and the
+  recursion-depth debug view.
+- [`docs/videos/blackhole.mp4`](docs/videos/blackhole.mp4): edge-on and
+  face-on disks, the Einstein ring and a photon-ring close-up.
+- [`docs/videos/magic.mp4`](docs/videos/magic.mp4): crystal, obsidian, arcane
+  metal and void stone, with field-driven particles.
+- [`docs/videos/atmosphere.mp4`](docs/videos/atmosphere.mp4): a day from
+  sunrise to twilight, a climb to orbit, and a Mars sunset.
 
 They are rendered offline, one fixed 1/60 s step per frame, so they are smooth
 regardless of how fast the machine renders. To re-record (for example after
