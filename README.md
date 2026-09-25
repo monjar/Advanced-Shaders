@@ -630,6 +630,10 @@ sphere traced in one fullscreen fragment shader. Viewpoints: *Temple entrance*,
 *Overlook*, *Character close-up* (follows the walker), *Sculpture*, *Rotunda*,
 *Aqueduct and bridge*; the camera flies between them.
 
+![Temple entrance](docs/sdf-temple.jpg)
+![Valley overlook with the aqueduct](docs/sdf-overlook.jpg)
+![Domain-warped sculpture over the river](docs/sdf-sculpture.jpg)
+
 **The constraint (the extra suffering).** One render pipeline and one draw
 of a fullscreen triangle write the final image. There are no meshes, textures,
 compute passes, extra render passes or temporal accumulation buffers. Every
@@ -1143,6 +1147,10 @@ torus knot. The scene is a ruined moonlit temple (pillars, braziers with
 flames, engraved rune circle, fog) so refraction and distortion have
 something to bend.
 
+![Enchanted crystal](docs/magic-crystal.jpg)
+![Cursed obsidian](docs/magic-obsidian.jpg)
+![Arcane metal](docs/magic-arcane-metal.jpg)
+
 ### Frame graph
 
 ```
@@ -1305,6 +1313,10 @@ mountains*, *Afternoon*, *Sunset*, *Twilight*, *Earth shadow*,
 *Stratosphere*, *Low orbit, limb*, *Low orbit, sunrise*, *From orbit*, and a
 Mars-like atmosphere (*Mars, afternoon / sunset / from orbit*).
 
+![Sunset](docs/atmosphere-sunset.jpg)
+![Low orbit, the limb](docs/atmosphere-limb.jpg)
+![Mars sunset](docs/atmosphere-mars-sunset.jpg)
+
 ### Frame graph
 
 ```
@@ -1454,6 +1466,11 @@ study 04. One continuous camera goes from 20,000 km to walking height
 (1.7 m) with no loading steps and no precision jitter. Presets: *Orbit, day
 side*, *Terminator, city lights*, *Low orbit sunset*, *Flyover, mountains*,
 *Coast*, *Ground level*.
+
+![Orbit, day side](docs/planet-orbit.jpg)
+![Terminator with city lights](docs/planet-city-lights.jpg)
+![Coast](docs/planet-coast.jpg)
+![Ground level](docs/planet-ground.jpg)
 
 ### Frame graph
 
