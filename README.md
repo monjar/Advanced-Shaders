@@ -25,7 +25,7 @@ Each study is a self-contained "demo" registered in a shared scene shell
 
 ## Videos
 
-60 fps, 1280×720 captures of each study (H.264):
+60 fps, 1280×720 captures (H.264):
 
 - [`docs/videos/ocean.mp4`](docs/videos/ocean.mp4): open water and sun glitter,
   shoreline with caustics and breaking waves, dropped objects splashing, storm.
@@ -63,6 +63,11 @@ committed ocean video uses it). Each shot is cached as a segment in `docs/videos
 an interrupted run resumes where it stopped. With a real GPU a full run takes
 minutes. The committed videos were rendered on SwiftShader (CPU), at about
 7 s per ocean frame and 1 s per clouds frame.
+
+Not rendered yet: the SDF world (about 40 s per frame on the CPU fallback
+used here) and the procedural planet (its shots are defined, but the render
+was stopped). Both take minutes on a machine with a GPU:
+`node tools/record.mjs sdf` and `node tools/record.mjs planet`.
 
 ## Running
 
